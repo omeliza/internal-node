@@ -1,0 +1,13 @@
+Code:
+
+function cd {
+
+ builtin cd "$@"
+
+ if [[ -f .nvmrc && -r .nvmrc ]]; then
+
+  nvm use
+
+ fi
+
+}

@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Document</title>
+</head>
+
+<body>
+  <form id="uploadForm">
+    <input type="file" name="image" id="image" accept="image/png, image/jpeg">
+    <button type="submit">Submit</button>
+  </form>
+  <script>
+    function extractFilename(contentDisposition) {
+      const regex = /filename=["']?([^"']+)["']?/;
+      const matches = contentDisposition && contentDisposition.match(regex);
+      return matches && matches[1] ? matches[1] : null;
+    }
+    document.getElementById('uploadForm').addEventListener('submit', async (e) => {
+      e.preventDefault()
+
+      const formData = new FormData(e.target);
+
+      try {
+        const response = await fetch('http://localhost:3000/upload', {
+          method: 'POST',
+          body: formData
+        });
+        if (!response.ok) {
+          throw new Error('Failed to upload and process image');
+        }
+        console.log({headers: JSON.stringify(response.headers)})
+
+        const imageBlob = await response.blob();
+
+        const imageUrl = URL.createObjectURL(imageBlob);
+
+        const img = document.createElement('img');
+        img.src = imageUrl;
+        img.alt = 'Uploaded and resized image';
+        document.body.appendChild(img);
+      } catch (error) {
+        console.error('Error:', error);
+      }
+    })
+  </script>
+</body>
+
+</html>

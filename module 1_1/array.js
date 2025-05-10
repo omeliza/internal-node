@@ -1,0 +1,3 @@
+const array = Array.from({ length: 1e6 }, (v, i) => i);
+
+module.exports = array;

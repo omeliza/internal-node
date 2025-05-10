@@ -1,0 +1,17 @@
+{
+  "name": "module-1_1",
+  "version": "1.0.0",
+  "description": "module 1 home task 1",
+  "keywords": [
+    "nodejs",
+    "core"
+  ],
+  "license": "MIT",
+  "author": "Yelyzaveta Omelich",
+  "type": "commonjs",
+  "scripts": {
+    "start:loop": "node forLoop",
+    "start:no-loop": "node noLoop",
+    "start:batching": "node batching"
+  }
+}
