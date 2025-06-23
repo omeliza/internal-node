@@ -1,6 +1,6 @@
 export async function getRandomUUID() {
   try {
-    const res = await fetch(`${import.meta.env.VITE_SERVER_URL}/random/uuid`);
+    const res = await fetch('/api/random/uuid');
     
     if (!res.ok) {
       throw new Error(`HTTP error! status: ${res.status}`);
@@ -9,7 +9,7 @@ export async function getRandomUUID() {
     const data = await res.json();
     return data.uuid;
   } catch (error) {
-    console.error('Error fetching UUID:', error);
+    console.error('Backend is not reachable:', error);
     throw error;
   }
 }
