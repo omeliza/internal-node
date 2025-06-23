@@ -1,7 +1,8 @@
 Workshop1.zip
 WH1.pptx
 cypto-stats/
-module 3_1
+module 3_1/server
+module 3_1/docker-compose.yaml
 
 module 1_4/roma.js
 module 1_4/row-output.csv
