@@ -1,2 +1,5 @@
 .vscode
 node_modules
+index.js
+state-observer.js
+generateCSVWithSizeLimit.js

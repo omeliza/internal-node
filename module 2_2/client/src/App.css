@@ -34,6 +34,7 @@ input[name=message] {
   width: 500px;
   height: 333px;
   background-color: #fff;
+  color: #000;
 }
 
 .modal h3 {

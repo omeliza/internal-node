@@ -72,18 +72,16 @@ io.on('connection', (socket) => {
       userProfiles[userId] = username;
     }
 
-    // check if user exists in userToSocket
-    if (!Object.keys(userToSocket).includes(userId)) {
-      userToSocket[userId] = socket.id;
+    // Always update userToSocket
+    userToSocket[userId] = socket.id;
 
-      let onlineUsers = [];
-      for (const userId of Object.keys(userToSocket)) {
-        const nickname = userProfiles[userId]?.nickname || null;
-        onlineUsers.push([userId, nickname]);
-      }
-
-      io.emit('onlineUsers', onlineUsers);
+    // Always emit the current online users in the correct format
+    let onlineUsers = [];
+    for (const userId of Object.keys(userToSocket)) {
+      const nickname = userProfiles[userId]?.nickname || null;
+      onlineUsers.push([userId, nickname]);
     }
+    io.emit('onlineUsers', onlineUsers);
 
     console.log('userToSocket', JSON.stringify(userToSocket));
   });
@@ -220,7 +218,13 @@ io.on('connection', (socket) => {
 
     if (userToSocket[userId]) {
       delete userToSocket[userId];
-      io.emit('onlineUsers', userToSocket);
+      // Always emit the current online users in the correct format
+      let onlineUsers = [];
+      for (const userId of Object.keys(userToSocket)) {
+        const nickname = userProfiles[userId]?.nickname || null;
+        onlineUsers.push([userId, nickname]);
+      }
+      io.emit('onlineUsers', onlineUsers);
     }
 
     if (userProfiles[userId]) delete userProfiles[userId];
