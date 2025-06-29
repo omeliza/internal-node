@@ -1,16 +1,13 @@
-const { fork } = require("node:child_process");
+import { array } from './array.js';
+import { hashStringAsync } from './hashStringAsync.js';
+import memoryManagement from './memoryManagement.js';
 
-const array = require('./array');
-const memoryManagement = require('./memoryManagement');
-
-if (!Array.isArray(array)) return;
-
-const hashProcess = fork('./generateHash.js');
-
-for (let i = 0; i < array.length; i++) {
-  hashProcess.send({ value: String(i)});
+async function forLoop() {
+  if (!Array.isArray(array)) return;
+  for (let i = 0; i < array.length; i++) {
+    await hashStringAsync(array[i]);
+  }
 }
 
-// hashProcess.on('message', (message) => console.log(message));
-
+forLoop();
 memoryManagement();

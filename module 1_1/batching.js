@@ -1,22 +1,13 @@
-const { fork } = require("node:child_process");
-
-const array = require('./array');
-const memoryManagement = require('./memoryManagement');
-
-if (!Array.isArray(array)) return;
-
-const hashProcess = fork('./generateHash.js');
+import { array } from './array.js';
+import { hashStringAsync } from './hashStringAsync.js';
+import memoryManagement from './memoryManagement.js';
 
 const processBatch = async (arr) => {
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      arr.forEach((el) => hashProcess.send(el))
-      resolve();
-    }, 0);
-  })
+  if (!Array.isArray(array)) return;
+  arr.forEach(async (el) => await hashStringAsync(el))
 }
 
-async function processArray (batchSize = 1e3) {
+async function processArray (batchSize = 1e2) {
   for (let i = 0; i < array.length; i+=batchSize) {
     const batch = array.slice(i, i + batchSize);
     await processBatch(batch);
@@ -24,5 +15,4 @@ async function processArray (batchSize = 1e3) {
 } 
 
 processArray();
-
 memoryManagement();

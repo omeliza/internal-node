@@ -1,5 +1,5 @@
-const { memoryUsage } = require("node:process");
+import { memoryUsage } from "node:process";
 
-module.exports = () => {
+export default () => {
   setInterval(() => console.table(memoryUsage()), 1000);
 }
