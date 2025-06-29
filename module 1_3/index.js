@@ -17,7 +17,7 @@ const getFilesInFolder = async (folderPath, extension) => {
   try {
     const folders = await readdir(folderPath, { recursive: true });
     const filePaths = folders
-      .filter((file) => file.includes('.') && file.split('.')[1] === extension)
+      .filter((file) => path.extname(file) === `.${extension}`)
       .map((file) => path.join(folderPath, file));
 
     if (!filePaths.length) {
