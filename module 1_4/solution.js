@@ -29,7 +29,7 @@ if (!VALID_LIMITS.includes(limitType)) {
 if (limitType === 'file-size') {
   if (!isNaN(limitValue) && limitValue > 0) {
     console.log('Got %s as size limit', limitValue);
-    generateCSVWithSizeLimit(limitValue);
+    generateCSV({ mode: 'size', value: limitValue });
   } else {
     console.error('Invalid size limit');
     process.exit(1);
@@ -37,7 +37,7 @@ if (limitType === 'file-size') {
 } else if (limitType === 'rows-limit') {
   if (!isNaN(limitValue) && limitValue > 0) {
     console.log('Got %s as row count limit', limitValue);
-    generateCSVWithRowLimit(limitValue);
+    generateCSV({ mode: 'rows', value: limitValue });
   } else {
     console.log(`${red}Invalid answer${reset}`);
     process.exit(1);
@@ -57,73 +57,59 @@ setInterval(() => {
   console.log(`Memory used: ${formatMemoryUsage(memoryUsage().rss)}`);
 }, 5000);
 
-// generate csv with size limit
-function generateCSVWithSizeLimit(size) {
-  const FILE_SIZE_LIMIT_BYTES = size * 1024 * 1024;
+function generateCSV({ mode, value }) {
+  const isSizeMode = mode === 'size';
+  const FILE_SIZE_LIMIT_BYTES = isSizeMode ? value * 1024 * 1024 : Infinity;
+  const ROW_LIMIT = !isSizeMode ? value : Infinity;
 
-  const filePath = path.join(__dirname, 'size-output.csv');
-
+  const filePath = path.join(__dirname, `${mode}-output.csv`);
   const writeStream = fs.createWriteStream(filePath);
-
   let index = 1;
   let currentSize = 0;
-
-  const writeRow = () => {
-    const row = Papa.unparse([user(index)]);
-    const rowSize = Buffer.byteLength(row, 'utf-8');
-
-    if (currentSize + rowSize > FILE_SIZE_LIMIT_BYTES) {
-      writeStream.end(() => {
-        console.log(
-          `CSV file generated with ${index - 1} records, approx. ${
-            currentSize / (1024 * 1024)
-          } MB`
-        );
-
-        process.exit(1);
-      });
-      return;
-    }
-
-    if (!writeStream.write(row)) {
-      writeStream.once('drain', writeRow);
-      return;
-    }
-
-    currentSize += rowSize;
-    index++;
-    writeRow();
-  }
-
-  writeRow();
-}
-
-function generateCSVWithRowLimit(rows) {
-  const writeStream = fs.createWriteStream('row-output.csv');
 
   writeStream.on('error', (err) => {
     console.error('Stream error:', err);
   });
 
-  let index = 1;
-  const writeRow = () => {
-    const row = Papa.unparse([user(index)]);
+const writeRow = () => {
+  if (index > ROW_LIMIT) {
+    return finishStream();
+  }
 
-    if (index > rows) {
-      writeStream.end(() => {
-        console.log(`CSV file generated with ${rows} records.`);
-        process.exit(1);
-      });
-      return;
+  const data = user(index);
+
+  let row, rowSize;
+  if (isSizeMode) {
+    row = Papa.unparse([data]) + '\n';
+    rowSize = Buffer.byteLength(row, 'utf-8');
+
+    if (currentSize + rowSize > FILE_SIZE_LIMIT_BYTES) {
+      return finishStream();
     }
+  } else {
+    row = Papa.unparse([data]) + '\n';
+  }
 
-    if (!writeStream.write(row)) {
-      writeStream.once('drain', writeRow);
-      return;
-    }
+  if (!writeStream.write(row)) {
+    writeStream.once('drain', writeRow);
+    return;
+  }
 
-    index++;
-    writeRow();
+  if (isSizeMode) currentSize += rowSize;
+
+  index++;
+  writeRow();
+};
+
+  const finishStream = () => {
+    writeStream.end(() => {
+      console.log(
+        `CSV file generated with ${index - 1} records, approx. ${
+          currentSize / (1024 * 1024)
+        } MB`
+      );
+      process.exit(0);
+    });
   }
 
   writeRow();
