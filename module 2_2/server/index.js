@@ -19,17 +19,20 @@ const events = [
   'startTyping',
   'stopTyping',
 ];
-const usersInRooms = {}; // { room: [userId, userId2], ..}
-const messagesInRooms = {}; // { room: [{userId, msg, timestamp, nickname},..]}
-const userToSocket = {}; // {userid1: socketid1, ...}
-const userProfiles = {}; // {userid1: {nickname}, ...}
+// const usersInRooms = {}; // { room: [userId, userId2], ..}
+const usersInRooms = new Map();
+// const messagesInRooms = {}; // { room: [{userId, msg, timestamp, nickname},..]}
+const messagesInRooms = new Map();
+const userToSocket = new Map(); // {userid1: socketid1, ...}
+// const userProfiles = {}; // {userid1: {nickname}, ...}
+const userProfiles = new Map();
 
 io.on('connection', (socket) => {
   console.log('a user connected', socket.id);
 
   let userId = socket.handshake.auth?.userId;
 
-  if (!userId || !userToSocket[userId]) {
+  if (!userId || !userToSocket.has(userId)) {
     userId = `user-${Math.random().toString(36).substr(2, 9)}`;
     console.log(`Generated new userId: ${userId}`);
 
@@ -38,7 +41,7 @@ io.on('connection', (socket) => {
     console.log(`Reconnected user with userId: ${userId}`);
   }
 
-  userToSocket[userId] = socket.id;
+  userToSocket.set(userId, socket.id);
 
   socket.emit('availableRooms', availableRooms);
 
@@ -54,31 +57,32 @@ io.on('connection', (socket) => {
     }
 
     // remove user from the previous chat
-    for (const existingRoom in usersInRooms) {
-      usersInRooms[existingRoom] = usersInRooms[existingRoom].filter(
-        (id) => id !== userId
+    for (const [room, userIds] of usersInRooms.entries()) {
+      usersInRooms.set(
+        room,
+        userIds.filter((id) => id !== userId)
       );
     }
 
     // add to the new chat
-    if (!usersInRooms[room]) usersInRooms[room] = [];
-    usersInRooms[room].push(userId);
+    if (!usersInRooms.has(room)) usersInRooms.set(room, []);
+    usersInRooms.get(room).push(userId);
     console.log('userInRooms', JSON.stringify(usersInRooms));
 
     socket.join(room);
-    socket.emit('messages', messagesInRooms[room]);
+    socket.emit('messages', messagesInRooms.get(room));
 
     if (username) {
-      userProfiles[userId] = username;
+      userProfiles.set(userId, { nickname: username });
     }
 
     // Always update userToSocket
-    userToSocket[userId] = socket.id;
+    userToSocket.set(userId, socket.id);
 
     // Always emit the current online users in the correct format
     let onlineUsers = [];
-    for (const userId of Object.keys(userToSocket)) {
-      const nickname = userProfiles[userId]?.nickname || null;
+    for (const [userId, socketId] of userToSocket.entries()) {
+      const nickname = userProfiles.get(userId)?.nickname || null;
       onlineUsers.push([userId, nickname]);
     }
     io.emit('onlineUsers', onlineUsers);
@@ -87,11 +91,11 @@ io.on('connection', (socket) => {
   });
 
   socket.on('getMessages', (room) => {
-    if (!Object.keys(messagesInRooms).includes(room)) {
+    if (!messagesInRooms.has(room)) {
       console.error('Unknown room');
       return;
     }
-    socket.emit('messages', messagesInRooms[room]);
+    socket.emit('messages', messagesInRooms.get(room));
   });
 
   socket.on('setNickname', (nickname) => {
@@ -108,12 +112,13 @@ io.on('connection', (socket) => {
       return;
     }
 
-    userProfiles[userId] = { ...userProfiles[userId], nickname };
+    const existing = userProfiles.get(userId) || {};
+    userProfiles.set(userId, { ...existing, nickname });
 
     // re-sent updated users
     let onlineUsers = [];
-    for (const userId of Object.keys(userToSocket)) {
-      const nickname = userProfiles[userId]?.nickname || null;
+    for (const [userId, socketId] of userToSocket.entries()) {
+      const nickname = userProfiles.get(userId)?.nickname || null;
       onlineUsers.push([userId, nickname]);
     }
 
@@ -132,7 +137,7 @@ io.on('connection', (socket) => {
   socket.on('chatMessage', ({ userId, msg, room }) => {
     console.log({ userId, msg, room });
     console.log(userId, JSON.stringify(usersInRooms));
-    if (!Object.keys(userToSocket).includes(userId)) {
+    if (!userToSocket.has(userId)) {
       console.error('Unknown user');
       return;
     }
@@ -151,11 +156,11 @@ io.on('connection', (socket) => {
       userId,
       msg,
       timestamp: Date.now(),
-      nickname: userProfiles[userId]?.nickname || null,
+      nickname: userProfiles.get(userId)?.nickname || null,
     };
 
-    if (!messagesInRooms[room]) messagesInRooms[room] = [];
-    messagesInRooms[room].push(newMessage);
+    if (!messagesInRooms.has(room)) messagesInRooms.set(room, []);
+    messagesInRooms.get(room).push(newMessage);
     io.to(room).emit('newMessage', newMessage);
     console.log(JSON.stringify(messagesInRooms));
   });
@@ -167,8 +172,8 @@ io.on('connection', (socket) => {
       return;
     }
     let userRoom = null;
-    for (const room in usersInRooms) {
-      if (usersInRooms[room].includes(userId)) {
+    for (const [room, userIds] of usersInRooms.entries()) {
+      if (userIds.includes(userId)) {
         userRoom = room;
         break;
       }
@@ -177,7 +182,7 @@ io.on('connection', (socket) => {
       console.error('User is not in the room!');
       return;
     }
-    const nickname = userProfiles[userId]?.nickname || null;
+    const nickname = userProfiles.get(userId)?.nickname || null;
     io.to(userRoom).emit('typing', { userId, nickname });
   });
 
@@ -189,8 +194,8 @@ io.on('connection', (socket) => {
     }
 
     let userRoom = null;
-    for (const room in usersInRooms) {
-      if (usersInRooms[room].includes(userId)) {
+    for (const [room, userIds] of usersInRooms.entries()) {
+      if (userIds.includes(userId)) {
         userRoom = room;
         break;
       }
@@ -212,22 +217,25 @@ io.on('connection', (socket) => {
     }
 
     // remove user from a room
-    for (const room in usersInRooms) {
-      usersInRooms[room] = usersInRooms[room].filter((id) => id !== userId);
+    for (const [room, userIds] of usersInRooms.entries()) {
+      usersInRooms.set(
+        room,
+        userIds.filter((id) => id !== userId)
+      );
     }
 
-    if (userToSocket[userId]) {
-      delete userToSocket[userId];
+    if (userToSocket.has(userId)) {
+      userToSocket.delete(userId);
       // Always emit the current online users in the correct format
       let onlineUsers = [];
-      for (const userId of Object.keys(userToSocket)) {
-        const nickname = userProfiles[userId]?.nickname || null;
+      for (const [userId, socketId] of userToSocket.entries()) {
+        const nickname = userProfiles.get(userId)?.nickname || null;
         onlineUsers.push([userId, nickname]);
       }
       io.emit('onlineUsers', onlineUsers);
     }
 
-    if (userProfiles[userId]) delete userProfiles[userId];
+    if (userProfiles.has(userId)) userProfiles.delete(userId);
 
     console.log('user disconnected', socket.id);
     console.log(JSON.stringify(usersInRooms));
@@ -245,9 +253,8 @@ io.on('error', (e) => console.error(e));
 server.listen(4000, () => console.log('listening on *:4000'));
 
 function getUserIdBySocketId(socketId) {
-  return (
-    Object.keys(userToSocket).find(
-      (userId) => userToSocket[userId] === socketId
-    ) || null
-  );
+  for (const [userId, sockId] of userToSocket.entries()) {
+    if (sockId === socketId) return userId;
+  }
+  return null;
 }
